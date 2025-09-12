@@ -12,6 +12,8 @@
     - Requires Active Directory PowerShell module
     - Based on CIS Microsoft Windows Server 2019 Benchmark
     - Creates backup of current settings before applying changes
+    - Run and capture output with .\CIS-AD-Audit-Config.ps1 *> C:\Temp\audit-script-output.txt 2>&1
+    - Or .\CIS-AD-Audit-Config.ps1 -Verbose 4>&1 3>&1 2>&1 1>&1 | Tee-Object -FilePath C:\Temp\complete-audit-log.txt
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
