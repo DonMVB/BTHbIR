@@ -70,39 +70,74 @@ function Backup-CurrentAuditSettings {
     return $true
 }
 
-# Function to configure audit policies
-function Set-AuditPolicy {
-    param([string]$Category, [string]$Setting)
-    
+# Function to get available subcategories for validation
+function Get-ValidSubcategories {
     try {
-        Write-Log "Setting $Category to $Setting"
-        $result = & auditpol /set /category:"$Category" /$Setting 2>&1
-        if ($LASTEXITCODE -eq 0) {
-            Write-Log "Successfully configured: $Category" -Level "SUCCESS"
-        } else {
-            Write-Log "Failed to configure $Category : $result" -Level "ERROR"
-        }
+        $subcategories = & auditpol /list /subcategory:* 2>$null | Where-Object { 
+            $_ -match '^\s+' -and $_ -notmatch 'Category/Subcategory' -and $_.Trim() -ne ''
+        } | ForEach-Object { $_.Trim() }
+        return $subcategories
     }
     catch {
-        Write-Log "Error configuring $Category : $($_.Exception.Message)" -Level "ERROR"
+        Write-Log "Could not retrieve subcategory list" -Level "WARNING"
+        return @()
     }
 }
 
-# Function to configure audit subcategories
+# Function to configure audit subcategories with proper syntax
 function Set-AuditSubcategory {
     param([string]$Subcategory, [string]$Setting)
     
     try {
-        Write-Log "Setting $Subcategory to $Setting"
-        $result = & auditpol /set /subcategory:"$Subcategory" /$Setting 2>&1
+        Write-Log "Configuring '$Subcategory' -> $Setting"
+        
+        # Parse the setting to determine success/failure flags
+        $successFlag = "disable"
+        $failureFlag = "disable"
+        
+        if ($Setting -eq "success") {
+            $successFlag = "enable"
+            $failureFlag = "disable"
+        }
+        elseif ($Setting -eq "failure") {
+            $successFlag = "disable"
+            $failureFlag = "enable"
+        }
+        elseif ($Setting -eq "success,failure" -or $Setting -eq "failure,success") {
+            $successFlag = "enable"
+            $failureFlag = "enable"
+        }
+        
+        # Execute the auditpol command with proper syntax
+        $result = & cmd /c "auditpol /set /subcategory:`"$Subcategory`" /success:$successFlag /failure:$failureFlag" 2>&1
+        
         if ($LASTEXITCODE -eq 0) {
-            Write-Log "Successfully configured: $Subcategory" -Level "SUCCESS"
+            Write-Log "SUCCESS: $Subcategory configured" -Level "SUCCESS"
         } else {
-            Write-Log "Failed to configure $Subcategory : $result" -Level "ERROR"
+            # Check if subcategory name might be wrong by trying to find similar ones
+            Write-Log "Failed to configure '$Subcategory'. Error: $result" -Level "ERROR"
+            
+            # Try to suggest similar subcategory names
+            $validSubcategories = Get-ValidSubcategories
+            $similar = $validSubcategories | Where-Object { $_ -like "*$($Subcategory.Split(' ')[0])*" }
+            if ($similar) {
+                Write-Log "Similar subcategories found: $($similar -join ', ')" -Level "WARNING"
+            }
         }
     }
     catch {
-        Write-Log "Error configuring $Subcategory : $($_.Exception.Message)" -Level "ERROR"
+        Write-Log "Exception configuring '$Subcategory': $($_.Exception.Message)" -Level "ERROR"
+    }
+}
+
+# Function to test if we can list subcategories (basic connectivity test)
+function Test-AuditPolAccess {
+    try {
+        $test = & auditpol /get /category:"System" 2>$null
+        return ($LASTEXITCODE -eq 0)
+    }
+    catch {
+        return $false
     }
 }
 
@@ -114,6 +149,12 @@ Write-Log "Script must be run as Administrator on a Domain Controller"
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Log "This script must be run as Administrator" -Level "ERROR"
+    exit 1
+}
+
+# Test auditpol access
+if (-not (Test-AuditPolAccess)) {
+    Write-Log "Cannot access auditpol. Ensure you're running on Windows Server with proper permissions" -Level "ERROR"
     exit 1
 }
 
@@ -146,10 +187,20 @@ if ($BackupCurrentSettings) {
 
 Write-Log "Configuring CIS recommended audit policies..."
 
+# Get list of available subcategories first
+Write-Log "Retrieving available audit subcategories..."
+$validSubcategories = Get-ValidSubcategories
+
+if ($validSubcategories.Count -gt 0) {
+    Write-Log "Found $($validSubcategories.Count) available audit subcategories"
+} else {
+    Write-Log "Could not retrieve subcategory list - proceeding anyway" -Level "WARNING"
+}
+
 # CIS Benchmark Audit Policy Recommendations
 Write-Log "=== Account Logon ==="
 Set-AuditSubcategory -Subcategory "Credential Validation" -Setting "success,failure"
-Set-AuditSubcategory -Subcategory "Kerberos Authentication Service" -Setting "success,failure"
+Set-AuditSubcategory -Subcategory "Kerberos Authentication Service" -Setting "success,failure"  
 Set-AuditSubcategory -Subcategory "Kerberos Service Ticket Operations" -Setting "success,failure"
 Set-AuditSubcategory -Subcategory "Other Account Logon Events" -Setting "success,failure"
 
@@ -217,8 +268,8 @@ Set-AuditSubcategory -Subcategory "Sensitive Privilege Use" -Setting "success,fa
 Write-Log "=== System ==="
 Set-AuditSubcategory -Subcategory "IPsec Driver" -Setting "success,failure"
 Set-AuditSubcategory -Subcategory "Other System Events" -Setting "success,failure"
-Set-AuditSubcategory -Subcategory "Security State Change" -Setting "success,failure"
-Set-AuditSubcategory -Subcategory "Security System Extension" -Setting "success,failure"
+Set-AuditSubcategory -Subcategory "Security State Change" -Setting "success"
+Set-AuditSubcategory -Subcategory "Security System Extension" -Setting "success"
 Set-AuditSubcategory -Subcategory "System Integrity" -Setting "success,failure"
 
 # Configure Process Creation Command Line Auditing (for Event 4688 details)
@@ -263,10 +314,16 @@ Write-Log "Consider configuring log size and retention policies as needed"
 Write-Log "Restart may be required for all settings to take effect"
 
 # Display current audit policy summary
-Write-Log "=== Current Audit Policy Summary ==="
+Write-Log "=== Final Audit Policy Summary ==="
 try {
     & auditpol /get /category:* | Where-Object { $_ -notmatch "^$" -and $_ -notmatch "Category/Subcategory" -and $_ -notmatch "^Machine Name" }
 }
 catch {
-    Write-Log "Could not retrieve current audit policy summary" -Level "WARNING"
+    Write-Log "Could not retrieve final audit policy summary" -Level "WARNING"
+}
+
+Write-Log "=== Available Subcategories Reference ==="
+if ($validSubcategories.Count -gt 0) {
+    Write-Log "For reference, here are the exact subcategory names on this system:"
+    $validSubcategories | Sort-Object | ForEach-Object { Write-Log "  - $_" -Level "INFO" }
 }
