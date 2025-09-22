@@ -76,6 +76,8 @@ find_and_add_to_path() {
         "/usr/local/$package_name/bin"
         "/usr/sbin"
         "/usr/local/sbin"
+        "/opt/zeek/bin"
+        "/usr/local/zeek/bin"
     )
     
     # First check if it's already in PATH
