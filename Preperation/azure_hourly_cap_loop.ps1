@@ -6,6 +6,10 @@ $location = "eastus"  # Match VM region
 $durationSeconds = 3600  # 1 hour
 $loopCount = 3  # Number of captures (adjust as needed)
 
+# Where the Captures Go: Stored in the Blob container  in your storage account. 
+# You can download  files via Azure Portal or use
+# Get-AzStorageBlob -Container "captures" -Context $storageContext
+
 # LOGIN
 Connect-AzAccount
 
