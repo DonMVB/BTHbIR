@@ -1,4 +1,8 @@
 # Run as Administrator
+# This code will enable maximum possible local audits in the windows event logs using auditpol and its subcategories
+# also known as advanced auditing
+# Turns all knobs to 11.
+#
 Write-Host "Enabling all audit subcategories for Success and Failure..." -ForegroundColor Cyan
 
 # Get all subcategory names (first column only)
