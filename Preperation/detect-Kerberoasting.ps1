@@ -1,4 +1,4 @@
-﻿# Script 2: Detect Kerberoasting Activity
+﻿# Script to Detect Kerberoasting Activity
 # Purpose: Identifies accounts vulnerable to Kerberoasting and detects active attacks
 # Can be run by Domain Admins or users with appropriate audit log access
 
@@ -111,5 +111,6 @@ Write-Host "  • Implement long, complex passwords (25+ characters) for service
 Write-Host "  • Monitor Event ID 4769 for unusual patterns"
 Write-Host "  • Enable advanced audit policy: Audit Kerberos Service Ticket Operations"
 Write-Host "  • Consider removing unnecessary SPNs from user accounts"
+
 
 Write-Host "`n=== Scan Complete ===" -ForegroundColor Cyan
