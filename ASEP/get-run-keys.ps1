@@ -1,3 +1,7 @@
+# This is a quick script to see what is in the "run" keys. It does not replace
+# a full ASEP examination, but it certainly is useful to see "what just got added"
+# when you install something on the system.
+
 $RunKeyPaths = @(
     "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
     "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce",
