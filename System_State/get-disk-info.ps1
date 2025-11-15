@@ -61,16 +61,16 @@ function Get-DriveInventory {
                                 $freeSpaceGB = [math]::Round($logicalDisk.FreeSpace / 1GB, 2)
                                 $usedSpaceGB = [math]::Round(($logicalDisk.Size - $logicalDisk.FreeSpace) / 1GB, 2)
                                 
-                                Write-Host "      ► Mounted as: $($logicalDisk.DeviceID) [$($logicalDisk.FileSystem)]" -ForegroundColor Green
+                                Write-Host "        Mounted as: $($logicalDisk.DeviceID) [$($logicalDisk.FileSystem)]" -ForegroundColor Green
                                 Write-Host "        Label: '$($logicalDisk.VolumeName)'" -ForegroundColor Green
                                 Write-Host "        Used: $usedSpaceGB GB | Free: $freeSpaceGB GB" -ForegroundColor Green
                             }
                         }
                     } else {
                         if (-not $isHidden) {
-                            Write-Host "      ► Not mounted (no drive letter)" -ForegroundColor Red
+                            Write-Host "        Not mounted (no drive letter)" -ForegroundColor Red
                         } else {
-                            Write-Host "      ► Hidden partition (not accessible)" -ForegroundColor Magenta
+                            Write-Host "        Hidden partition (not accessible)" -ForegroundColor Magenta
                         }
                     }
                     Write-Host ""
@@ -101,7 +101,7 @@ function Get-DriveInventory {
                 Write-Host "    Health: $($volume.HealthStatus) | Operational: $($volume.OperationalStatus)" -ForegroundColor Gray
                 
                 if ($volume.DriveLetter -eq $null -and $volume.FileSystem) {
-                    Write-Host "    ► Hidden/System Volume" -ForegroundColor Magenta
+                    Write-Host "      Hidden/System Volume" -ForegroundColor Magenta
                 }
                 Write-Host ""
             }
